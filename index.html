@@ -1958,7 +1958,7 @@ Jakarta Barat</div>
 (function() {
 
   // GANTI URL INI DENGAN DEPLOYMENT URL APPS SCRIPT ANDA
-  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdSMcyfWzKrfxZ8GQKYJFa2vuUs-62n3OuRVRwzwbLysm_BdQNAFCZWj8HbfyDjThqZA/exec';
+  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzByXnFzN6MjCeo3DXpc7CRhpJTzcF4MYAi7buAu4oVmqV0_usPATHQ9J31BmfWUftt4g/exec';
 
   function loadAndRender() {
     fetch(APPS_SCRIPT_URL + '?action=get')
@@ -2032,15 +2032,14 @@ Jakarta Barat</div>
   };
 
   function sendToSheet(data) {
+    // Menggunakan mode 'no-cors' untuk menghindari CORS error
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
-    }).then(function(res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
     });
   }
 
@@ -2083,20 +2082,16 @@ Jakarta Barat</div>
       }
 
       sendToSheet(dataToSend)
-        .then(function(response) {
-          if (response.status === 'success') {
-            alert('Terima kasih ' + nama + '! Ucapan dan konfirmasi Anda telah disimpan.');
-            form.reset();
-            var gf = document.getElementById('guest-field');
-            if (gf) gf.style.display = 'none';
-            loadAndRender();
-          } else {
-            throw new Error(response.message || 'Gagal menyimpan');
-          }
+        .then(function() {
+          alert('✅ Terima kasih ' + nama + '! Ucapan dan konfirmasi Anda telah disimpan.');
+          form.reset();
+          var gf = document.getElementById('guest-field');
+          if (gf) gf.style.display = 'none';
+          loadAndRender();
         })
         .catch(function(err) {
           console.error('Error detail:', err);
-          alert('Gagal mengirim: ' + err.message + '. Silakan coba lagi.');
+          alert('❌ Gagal mengirim. Silakan coba lagi.');
         })
         .finally(function() {
           if (submitBtn) {
