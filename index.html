@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1958,11 +1957,8 @@ Jakarta Barat</div>
 <script>
 (function() {
 
-  // ============================================================
   // GANTI URL INI DENGAN DEPLOYMENT URL APPS SCRIPT ANDA
-  // ============================================================
   var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyP4ugciY3EXhkjZmPEKH1JUVVoRiozUug3kVsgDm4wsv5kEWtrAJMErSaWemHuhu0j/exec';
-  // ============================================================
 
   function loadAndRender() {
     fetch(APPS_SCRIPT_URL + '?action=get')
@@ -1977,7 +1973,7 @@ Jakarta Barat</div>
           if (!container) return;
           
           if (!entries.length) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Belum ada ucapan</div>';
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Belum ada ucapan. Jadilah yang pertama!</div>';
             return;
           }
           
@@ -1987,9 +1983,9 @@ Jakarta Barat</div>
           shown.forEach(function(e) {
             var inisial = e.nama ? e.nama.trim().charAt(0).toUpperCase() : '?';
             
-            var badgeColor = e.kehadiran === 'Hadir ✅'
+            var badgeColor = (e.kehadiran === 'Hadir ✅' || e.kehadiran === 'present')
               ? 'background:#e8f5e9;color:#2e7d32;'
-              : e.kehadiran === 'Masih Ragu 🤔'
+              : (e.kehadiran === 'Masih Ragu 🤔' || e.kehadiran === 'notsure')
                 ? 'background:#fff8e1;color:#f57f17;'
                 : 'background:#fce4ec;color:#c62828;';
             
@@ -2002,7 +1998,7 @@ Jakarta Barat</div>
                   + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">'
                   + '<span style="font-size:13px;font-weight:600;">' + escHtml(e.nama) + '</span>'
                   + '<span style="font-size:10px;padding:2px 7px;border-radius:10px;' + badgeColor + '">' + badgeText + '</span>'
-                  + (e.jumlah && e.jumlah !== '' ? '<span style="font-size:10px;color:#888;">' + e.jumlah + ' org</span>' : '')
+                  + (e.jumlah && e.jumlah !== '' ? '<span style="font-size:10px;color:#888;">' + e.jumlah + '</span>' : '')
                   + '</div>'
                   + (e.ucapan ? '<p style="font-size:12px;margin:0;line-height:1.6;color:rgba(0,0,0,.65);word-break:break-word;">' + escHtml(e.ucapan) + '</p>' : '')
                   + '</div></div>';
@@ -2014,10 +2010,15 @@ Jakarta Barat</div>
       })
       .catch(function(err) {
         console.error('Gagal memuat data:', err);
+        var container = document.getElementById('rsvp-list-display');
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">⚠️ Gagal memuat ucapan. Silakan refresh halaman.</div>';
+        }
       });
   }
 
   function escHtml(s) {
+    if (!s) return '';
     return String(s)
       .replace(/&/g,'&amp;')
       .replace(/</g,'&lt;')
@@ -2027,24 +2028,44 @@ Jakarta Barat</div>
 
   window.toggleGuest = function(radio) {
     var gf = document.getElementById('guest-field');
-    if (gf) gf.style.display = radio.value === 'present' ? 'flex' : 'none';
+    if (gf) gf.style.display = radio.value === 'present' ? 'inline-block' : 'none';
   };
+
+  function sendToSheet(data) {
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    }).then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    });
+  }
 
   var form = document.getElementById('ev-rsvp-form-custom');
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
 
-      var nama      = document.getElementById('author').value.trim();
-      var kehadiran = form.querySelector('input[name="attendance"]:checked');
-      var ucapan    = document.getElementById('comment').value.trim();
-      var jumlah    = document.getElementById('guest').value;
+      var nama = document.getElementById('author').value.trim();
+      var kehadiranRadio = form.querySelector('input[name="attendance"]:checked');
+      var ucapan = document.getElementById('comment').value.trim();
+      var jumlahSelect = document.getElementById('guest');
+      var jumlah = jumlahSelect ? jumlahSelect.value : '1';
 
-      if (!nama) { alert('Masukkan nama Anda.'); return; }
-      if (!kehadiran) { alert('Pilih konfirmasi kehadiran.'); return; }
+      if (!nama) {
+        alert('Masukkan nama Anda terlebih dahulu!');
+        return;
+      }
+      if (!kehadiranRadio) {
+        alert('Pilih konfirmasi kehadiran Anda!');
+        return;
+      }
 
       var statusMap = { present: 'Hadir ✅', notsure: 'Masih Ragu 🤔', notpresent: 'Tidak Hadir ❌' };
-      var statusVal = kehadiran.value;
+      var statusVal = kehadiranRadio.value;
       var statusTxt = statusMap[statusVal];
 
       var dataToSend = {
@@ -2054,21 +2075,35 @@ Jakarta Barat</div>
         ucapan: ucapan || ''
       };
 
-      fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend)
-      }).then(function() {
-        alert('Terima kasih ' + nama + '! Ucapan dan konfirmasi Anda telah disimpan.');
-        form.reset();
-        var gf = document.getElementById('guest-field');
-        if (gf) gf.style.display = 'none';
-        loadAndRender();
-      }).catch(function(err) {
-        console.error('Gagal menyimpan:', err);
-        alert('Terjadi kesalahan. Silakan coba lagi.');
-      });
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var originalText = submitBtn ? submitBtn.innerHTML : 'Kirim';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Mengirim...';
+      }
+
+      sendToSheet(dataToSend)
+        .then(function(response) {
+          if (response.status === 'success') {
+            alert('Terima kasih ' + nama + '! Ucapan dan konfirmasi Anda telah disimpan.');
+            form.reset();
+            var gf = document.getElementById('guest-field');
+            if (gf) gf.style.display = 'none';
+            loadAndRender();
+          } else {
+            throw new Error(response.message || 'Gagal menyimpan');
+          }
+        })
+        .catch(function(err) {
+          console.error('Error detail:', err);
+          alert('Gagal mengirim: ' + err.message + '. Silakan coba lagi.');
+        })
+        .finally(function() {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+          }
+        });
     });
   }
 
